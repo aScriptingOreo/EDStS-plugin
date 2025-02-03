@@ -13,10 +13,11 @@ from threading import Thread
 from workers.fc_worker import FCWorker
 import time  # Add missing import
 from urllib.request import Request, urlopen  # Can be removed if not used elsewhere
+from permissions import get_permissions_header  # Added import
 
 logger = logging.getLogger(f'{appname}.EDStS')
 
-OAUTH_URL = "https://discord.com/oauth2/authorize?client_id=1335428069875388447&response_type=code&redirect_uri=https%3A%2F%2Fedsts.7thseraph.org%2Fapi%2Fauth%2Fdiscord%2Fcallback&scope=identify+guilds+email"
+REGISTER_USER_URL = "https://edsts.7thseraph.org/api/auth/register"
 API_BASE = "https://edsts.7thseraph.org"
 CHECK_INTERVAL = 600  # Verify API key every 60 seconds
 JOURNAL_ENDPOINT = f"{API_BASE}/api/journal/event"
@@ -78,7 +79,7 @@ def submit_journal_event(event: dict) -> bool:
         headers = {
             "Content-Type": "application/json",
             "x-api-key": api_key,
-            "x-permissions": "EDStS"  # New header for permissions
+            "x-permissions": get_permissions_header(config)  # Use common helper
         }
         
         logger.debug(f"Submitting event: {event.get('event')}")
@@ -177,7 +178,7 @@ def plugin_stop() -> None:
     this.fc_worker.stop()
 
 def perform_oauth() -> None:
-    webbrowser.open(OAUTH_URL)
+    webbrowser.open(REGISTER_USER_URL)
     logger.info("Opened Discord OAuth URL")
 
 def save_api_key(api_key: str, status_label: tk.Label) -> None:
@@ -203,6 +204,10 @@ def clear_api_key(api_key_var: tk.StringVar, key_status_label: tk.Label) -> None
     key_status_label["text"] = "API Key cleared"
     logger.info("EDStS API key cleared")
     update_status_label()  # Update main window status
+
+def save_user_permissions(permissions: str, label: tk.Label) -> None:
+    config.set("edsts_user_permissions", permissions)
+    label["text"] = "User permissions saved"
 
 def plugin_prefs(parent: nb.Notebook, cmdr: str, is_beta: bool) -> nb.Frame:
     """
@@ -231,6 +236,13 @@ def plugin_prefs(parent: nb.Notebook, cmdr: str, is_beta: bool) -> nb.Frame:
     # Save and Clear buttons
     nb.Button(frame, text="Save API Key", command=lambda: save_api_key(api_key_var.get(), key_status_label)).grid(row=7, column=0, sticky=tk.W, padx=10, pady=(10,0))
     nb.Button(frame, text="Clear API Key", command=lambda: clear_api_key(api_key_var, key_status_label)).grid(row=8, column=0, sticky=tk.W, padx=10, pady=(5,10))
+    
+    # User Permissions Section
+    nb.Label(frame, text="User Permissions (comma separated)").grid(row=9, column=0, sticky=tk.W, padx=10, pady=(10,0))
+    user_perm_var = tk.StringVar(value=config.get_str("edsts_user_permissions") or "")
+    user_perm_entry = nb.Entry(frame, textvariable=user_perm_var, width=40)
+    user_perm_entry.grid(row=10, column=0, sticky=tk.W, padx=10)
+    nb.Button(frame, text="Save Permissions", command=lambda: save_user_permissions(user_perm_var.get(), key_status_label)).grid(row=11, column=0, sticky=tk.W, padx=10, pady=(10,0))
     
     frame.api_key_var = api_key_var
     return frame

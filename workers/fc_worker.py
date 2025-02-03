@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, Set
 import requests
 from config import config, appname
+from permissions import get_permissions_header  # Added import
 
 logger = logging.getLogger(f'{appname}.EDStS.fc_worker')
 
@@ -101,7 +102,7 @@ class FCWorker:
             headers = {
                 "Content-Type": "application/json",
                 "x-api-key": api_key,
-                "x-permissions": "EDStS"  # New header for permissions
+                "x-permissions": get_permissions_header(config)  # Use common helper
             }
             
             response = requests.post(
